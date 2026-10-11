@@ -1,0 +1,278 @@
+name: Greenfield CI
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  push:
+    branches: [main]
+
+concurrency:
+  group: greenfield-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  pr-title:
+    name: PR Title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Self-test PR title rules
+        run: bash .github/scripts/test-pr-title.sh
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          export LC_ALL=C
+          fe0f=$(printf '\357\270\217')
+          title=${PR_TITLE//"$fe0f"/}
+          pattern='^(✨ feat|🐛 fix|🧪 test|♻ refactor|📚 docs|⚙ chore|👷 ci|💄 style|⚡ perf|📦 build|⏪ revert)(\([a-z0-9._/-]+\))?!?: .+'
+          if [[ "$title" =~ $pattern ]]; then
+            echo "PR title accepted."
+          else
+            echo "::error::Use '<emoji> <type>(<optional-scope>): <description>' with a matching emoji and type."
+            exit 1
+          fi
+
+  detect:
+    name: Detect Greenfield App
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.check.outputs.app }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: check
+        run: |
+          if [ -f package.json ] && [ -f package-lock.json ]; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Greenfield app checks await package.json and package-lock.json."
+          fi
+
+  lint-typecheck:
+    name: Lint & Typecheck
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+  unit-tests:
+    name: Unit Tests
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run test
+
+  database-rls-tests:
+    name: Database/RLS Integration Tests
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: lifeos_test
+          POSTGRES_USER: lifeos_admin
+          POSTGRES_PASSWORD: lifeos_admin_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lifeos_admin -d lifeos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Bootstrap superuser: used ONLY to create roles. Never used by migrations or tests.
+      BOOTSTRAP_DATABASE_URL: postgresql://lifeos_admin:lifeos_admin_test@localhost:5432/lifeos_test
+      # Migration role: owns migrated objects.
+      DATABASE_URL_UNPOOLED: postgresql://lifeos_migrator:lifeos_migrator_test@localhost:5432/lifeos_test
+      # Runtime role: what the application uses (RLS enforced).
+      DATABASE_URL: postgresql://lifeos_runtime:lifeos_runtime_test@localhost:5432/lifeos_test
+      # Maintenance role: cron and verified webhooks only.
+      MAINTENANCE_DATABASE_URL: postgresql://lifeos_maintenance:lifeos_maintenance_test@localhost:5432/lifeos_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Create database roles
+        run: |
+          psql "$BOOTSTRAP_DATABASE_URL" -v ON_ERROR_STOP=1 -f db-roles.sql
+          psql "$BOOTSTRAP_DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE lifeos_migrator PASSWORD 'lifeos_migrator_test'" \
+            -c "ALTER ROLE lifeos_runtime PASSWORD 'lifeos_runtime_test'" \
+            -c "ALTER ROLE lifeos_maintenance PASSWORD 'lifeos_maintenance_test'"
+      - run: npm run db:migrate
+      - run: npm run test:integration
+
+  build:
+    name: Build
+    needs: [detect, lint-typecheck, unit-tests, database-rls-tests]
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          # Well-formed but nonfunctional key (base64 of "example.clerk.accounts.dev$").
+          # No repository secrets, so Dependabot and fork PRs can build.
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk
+
+  # Advisory (not a required check) until the test-auth adapter exists and is stable.
+  e2e-tests:
+    name: E2E Tests
+    needs: [detect, build]
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: lifeos_test
+          POSTGRES_USER: lifeos_admin
+          POSTGRES_PASSWORD: lifeos_admin_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lifeos_admin -d lifeos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Bootstrap superuser: used ONLY to create roles. Never used by migrations or tests.
+      BOOTSTRAP_DATABASE_URL: postgresql://lifeos_admin:lifeos_admin_test@localhost:5432/lifeos_test
+      # Migration role: owns migrated objects.
+      DATABASE_URL_UNPOOLED: postgresql://lifeos_migrator:lifeos_migrator_test@localhost:5432/lifeos_test
+      # Runtime role: what the application uses (RLS enforced).
+      DATABASE_URL: postgresql://lifeos_runtime:lifeos_runtime_test@localhost:5432/lifeos_test
+      # Maintenance role: cron and verified webhooks only.
+      MAINTENANCE_DATABASE_URL: postgresql://lifeos_maintenance:lifeos_maintenance_test@localhost:5432/lifeos_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Create database roles
+        run: |
+          psql "$BOOTSTRAP_DATABASE_URL" -v ON_ERROR_STOP=1 -f db-roles.sql
+          psql "$BOOTSTRAP_DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE lifeos_migrator PASSWORD 'lifeos_migrator_test'" \
+            -c "ALTER ROLE lifeos_runtime PASSWORD 'lifeos_runtime_test'" \
+            -c "ALTER ROLE lifeos_maintenance PASSWORD 'lifeos_maintenance_test'"
+      - run: npm run db:migrate
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk
+          # Switches the app to the secret-free test-auth adapter (to be built with the app).
+          E2E_TEST_AUTH: "1"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # Real Clerk test instance. Runs only on pushes to main, where repository
+  # secrets are available. Never runs for forks or Dependabot. Not a required check.
+  e2e-clerk-trusted:
+    name: Clerk E2E (trusted)
+    needs: [detect, build]
+    if: needs.detect.outputs.app == 'true' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: lifeos_test
+          POSTGRES_USER: lifeos_admin
+          POSTGRES_PASSWORD: lifeos_admin_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lifeos_admin -d lifeos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      BOOTSTRAP_DATABASE_URL: postgresql://lifeos_admin:lifeos_admin_test@localhost:5432/lifeos_test
+      DATABASE_URL_UNPOOLED: postgresql://lifeos_migrator:lifeos_migrator_test@localhost:5432/lifeos_test
+      DATABASE_URL: postgresql://lifeos_runtime:lifeos_runtime_test@localhost:5432/lifeos_test
+      MAINTENANCE_DATABASE_URL: postgresql://lifeos_maintenance:lifeos_maintenance_test@localhost:5432/lifeos_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Create database roles
+        run: |
+          psql "$BOOTSTRAP_DATABASE_URL" -v ON_ERROR_STOP=1 -f db-roles.sql
+          psql "$BOOTSTRAP_DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE lifeos_migrator PASSWORD 'lifeos_migrator_test'" \
+            -c "ALTER ROLE lifeos_runtime PASSWORD 'lifeos_runtime_test'" \
+            -c "ALTER ROLE lifeos_maintenance PASSWORD 'lifeos_maintenance_test'"
+      - run: npm run db:migrate
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_TEST_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_TEST_SECRET_KEY }}

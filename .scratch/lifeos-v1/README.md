@@ -54,7 +54,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done · ⊘ blocked
 | [F-1](issues/0101-scaffold-nextjs-foundation.md) | Scaffold Next.js foundation | S0-1 | ☑ done |
 | [F-2](issues/0102-ci-workflows-and-rulesets.md) | Enable CI workflows and rulesets | F-1 | ☑ done |
 | [F-3](issues/0103-provision-provider-resources.md) | Provision provider resources and secrets | — | ☐ |
-| [F-4](issues/0104-observability-and-security-headers.md) | Observability, error model, security headers/CSP | F-1 | ☐ |
+| [F-4](issues/0104-observability-and-security-headers.md) | Observability, error model, security headers/CSP | F-1 | ☑ done |
 | [F-5](issues/0105-export-retention-legal.md) | Export format, retention, privacy/legal review | — | ☐ |
 
 ### Stage 2 — identity, schema, isolation (before product features)

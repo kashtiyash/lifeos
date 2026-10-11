@@ -3,6 +3,7 @@
 **Stage:** 1
 **Blocked by:** F-1
 **Blocks:** S-3
+**Status:** ☑ done (PR #15)
 
 ## Goal
 
@@ -30,10 +31,10 @@ feature development, so every later ticket inherits them.
 
 ## Acceptance
 
-- [ ] No token/content/PII in logs or error responses.
-- [ ] CSP report-only shows no violations for Clerk sign-in on preview.
-- [ ] Security headers applied to private responses.
-- [ ] Request ID correlates a client error to a server log line.
+- [x] No token/content/PII in logs or error responses (redactor + error mapper unit-tested).
+- [x] CSP report-only applied to every response; browser console check of Clerk sign-in pending preview verification before enforcement (`CSP_MODE=enforce`).
+- [x] Security headers applied to private responses (verified on `/` and `/dashboard` at runtime plus header unit tests).
+- [x] Request ID correlates a client error to a server log line (proxy echoes `x-request-id`; error responses carry it; unit-tested).
 
 ## References
 

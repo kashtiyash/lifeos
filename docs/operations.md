@@ -22,6 +22,53 @@ Investigate failures with query plans and traces before adding indexes,
 caching, or background infrastructure. Never include note contents, tokens,
 or unnecessary personal data in traces.
 
+## Observability, logging, and security headers
+
+Implemented by F-4; the modules live under `lib/observability/` and
+`lib/security/headers.ts`.
+
+- **Request IDs.** Every request gets an `x-request-id` header. A well-formed
+  inbound value is echoed (e.g. from a browser retry or an edge proxy);
+  anything else is replaced with a fresh UUID. The server receives it in the
+  request headers and the response echoes it, so a client error can be matched
+  to its exact server log line. Request IDs are correlation tokens, never user
+  identifiers.
+- **Logging.** All logs are single JSON lines via `createLogger()`.
+  Redaction is enforced centrally: keys that look like passwords, tokens,
+  cookies, emails, note/file content, and similar are replaced with
+  `[redacted]`; long strings are truncated; nested payloads are depth-limited.
+  Never put tokens, file contents, private notes, or unnecessary personal data
+  in a log field — the redactor does not make it safe to log them.
+  `LOG_LEVEL` overrides the default (`info` in production, `debug` elsewhere).
+- **Security headers and CSP.** Applied centrally in `next.config.ts` so pages
+  and API responses inherit them. The Content Security Policy starts from
+  `default-src 'self'` and adds only the exact origins the deployed app needs:
+  the Clerk frontend API (derived from `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`),
+  Cloudflare Turnstile, and Vercel Web Analytics/Speed Insights.
+  - Default mode is **report-only** (`Content-Security-Policy-Report-Only`).
+    Verify on a preview: sign in and out, open the browser console, and confirm
+    zero CSP violations.
+  - Switch the build to enforcement with `CSP_MODE=enforce` (or `off` to
+    disable) in Vercel/`next.config` and redeploy. `CSP_MODE=report-only` is
+    the default precisely so enforcement is never turned on by accident.
+  - Present hardening limit: `script-src` and `style-src` still use
+    `'unsafe-inline'`. When the app moves to dynamic rendering, adopt the
+    nonce-based policy in the Next.js CSP guide to remove that directive, then
+    re-verify report-only before enforcing.
+- **Vercel logs and Web Vitals.** Request/function logs are on automatically;
+  `Server-Timing` is emitted by the proxy (`proxy;dur=…`) and every request
+  line is correlated by `x-request-id`. Web Analytics and Speed Insights are
+  enabled in the project and wired in the root layout. Sentry is deliberately
+  not used unless error tracking needs exceed these facilities.
+- **Baseline — empty page, 2026-10-11.** Measured against production at
+  region `cle1`, warm, 30 sequential `GET /` requests with `curl`
+  (`time_starttransfer` = TTFB, `time_total` = transfer complete):
+  - TTFB: p50 ≈ **378 ms**, p95 ≈ **566 ms**, max ≈ 1780 ms.
+  - Total: p50 ≈ **487 ms**, p95 ≈ **650 ms**, max ≈ 1888 ms.
+  - No database queries exist yet, so no DB p50/p95 is recorded. Re-measure on
+    production-like data when H-3 (performance budgets/CWV) starts and update
+    the section.
+
 ## Backups and restore
 
 Before production launch, verify the database provider's current backup and

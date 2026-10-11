@@ -3,9 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
 
 import { QuickAdd } from "@/components/quick-add";
+import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { isActivePath, navItems } from "@/lib/ui/nav";
 import { targetSizes } from "@/lib/ui/targets";
@@ -61,9 +61,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center justify-between gap-2 px-1">
           <ThemeToggle />
-          <UserButton />
+          <UserMenu />
         </div>
       </aside>
 
@@ -76,9 +76,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             LifeOS
           </Link>
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1">
             <ThemeToggle />
-            <UserButton />
+            <UserMenu hideNameBelowSm />
           </div>
         </header>
 

@@ -56,6 +56,11 @@ gh api user --jq .id        # numeric ID, for the ruleset bypass actor
 
 ## 5. Neon (database)
 
+> **Full runbook:** [`provider-provisioning.md`](./provider-provisioning.md) has
+> the exact, copy-paste steps for Neon branches, the three role-scoped URLs,
+> Clerk instances, Vercel env scopes and private Blob stores. §5–§8 below are
+> the short version.
+
 - [ ] Create a project (via Vercel Marketplace or neon.com). Pick the region you will also use for Vercel functions. Record it.
 - [ ] Note two connection strings: pooled host (runtime, maintenance) and direct host (bootstrap, migrations).
 - [ ] Stage 0 already verified the design on a **throwaway branch** (13/13 on both
@@ -68,6 +73,9 @@ only the grants and restrictive RLS policies needed for expired Trash and
 cleanup queues. Credentials for each are distinct (see `.env.example`).
 
 ## 6. Clerk (development instance)
+
+> Provision all three instances (dev, production, test) with
+> [`provider-provisioning.md`](./provider-provisioning.md) §4.
 
 - [ ] Create an application. Enable email + password, **require email verification**, enable Google.
 - [ ] Copy the publishable key and secret key into `.env.local` (never commit).
@@ -91,6 +99,9 @@ The `package.json` scripts the CI expects (`lint`, `typecheck`, `test`,
 `package-lock.json` are now in place.
 
 ## 8. Vercel
+
+> Environment scopes, function region and private Blob wiring:
+> [`provider-provisioning.md`](./provider-provisioning.md) §5–§6.
 
 - [ ] `vercel link`, then set the **function region** next to Neon.
 - [ ] Add environment variables per environment (see `.env.example`); generate `CRON_SECRET` with `openssl rand -hex 32` (PowerShell: `-join ((48..57)+(97..102) | Get-Random -Count 64 | % {[char]$_})`).

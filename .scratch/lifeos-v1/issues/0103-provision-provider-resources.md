@@ -41,6 +41,7 @@ credentials through secret stores only. Nothing is imported from any prior app.
 
 ## References
 
+- `docs/provider-provisioning.md` — full copy-paste runbook (start here)
 - `docs/implementation-plan.md` Stage 1
 - `docs/data-and-security.md` (Environment variables, Database roles)
 - `docs/setup.md` §5, §6, §8

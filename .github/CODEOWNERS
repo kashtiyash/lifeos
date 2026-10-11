@@ -1,0 +1,4 @@
+# Default owner for every path. Add users or teams with write access as the
+# project grows; entries must reference accounts with repository access.
+
+* @kashtiyash

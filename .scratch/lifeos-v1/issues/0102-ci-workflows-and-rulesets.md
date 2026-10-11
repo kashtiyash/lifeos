@@ -36,10 +36,10 @@ configure branch protection so later tickets land safely.
 
 ## Acceptance
 
-- [ ] A fresh PR runs every workflow; names match the ruleset file.
-- [ ] Fork/Dependabot PRs run the required checks with **no** repository secrets.
-- [ ] Migrations in CI run as the migration role, never the bootstrap superuser.
-- [ ] CodeQL/Dependency Review are advisory unless the license/plan supports them.
+- [x] A fresh PR runs every workflow; names match the ruleset file.
+- [x] Fork/Dependabot PRs run the required checks with **no** repository secrets.
+- [x] Migrations in CI run as the migration role, never the bootstrap superuser.
+- [x] CodeQL/Dependency Review are advisory unless the license/plan supports them.
 
 ## References
 

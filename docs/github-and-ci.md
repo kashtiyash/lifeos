@@ -2,9 +2,25 @@
 
 This project includes portable GitHub configuration under `.github/`. GitHub
 Actions activates workflows only from the root `.github/workflows/` of the
-repository containing this project. When this blueprint is extracted to a
-standalone repository, verify paths, branch names, secrets, and status checks
-before enforcing its ruleset.
+repository containing this project. This repository is now extracted into a
+standalone repository with its ruleset enforced; verify paths, branch names,
+secrets, and status checks whenever the template is reused elsewhere.
+
+## Current configuration (this repository)
+
+- Visibility: **public**. Rulesets, CodeQL, Dependency Review, secret scanning
+  and private vulnerability reporting require a public repository or a paid
+  plan.
+- The `main-protection` ruleset is active on the default branch. Required
+  checks: **PR Title, Lint & Typecheck, Unit Tests, Database/RLS Integration
+  Tests, Build, Secret Scan**. Advisory (not required): Dependency Review,
+  CodeQL, NPM Audit, E2E Tests, Clerk E2E.
+- The maintainer is a pull-request-mode bypass actor, identified by numeric
+  GitHub account ID (the checked-in example cannot guess it).
+- Secret scanning, push protection, private vulnerability reporting, Dependabot
+  alerts and Dependabot security updates are enabled.
+- `LICENSE` (MIT) and `.github/CODEOWNERS` (the maintainer's real handle) are
+  committed.
 
 ## Configuration inventory
 
@@ -59,6 +75,10 @@ repository.
 - Dependabot and fork pull requests do not receive repository secrets. Do not
   attempt to solve this by exposing credentials through `pull_request_target`
   or by running untrusted code with secrets.
+- The required `PR Title` check exempts Dependabot authors
+  (`if: github.actor != 'dependabot[bot]'`): Dependabot titles follow their own
+  convention and would otherwise fail the emoji/type rule. The job still runs
+  and reports success for those PRs.
 - Run general E2E coverage with an isolated test-auth adapter that needs no
   provider secrets. Keep tests against the actual Clerk test instance in a
   trusted workflow/environment with restricted access; do not make a
@@ -71,11 +91,19 @@ repository.
 ## Security workflow availability
 
 Gitleaks and npm audit do not require paid Code Security features. Dependency
-Review and CodeQL availability for private repositories depends on GitHub's
-current plan and licensing. Keep those jobs advisory or conditionally disabled
-unless the destination repository is public or its plan includes the required
-features. Do not mark them as required checks when the provider will reject
-their execution.
+Review and CodeQL require a public repository or a paid plan: on a **private**
+repository they are unavailable on the free plan. Keep those jobs advisory or
+conditionally disabled unless the repository is public or its plan includes the
+required features. Do not mark them as required checks when the provider will
+reject their execution. Branch rulesets and branch protection are likewise a
+paid feature on private repositories and free on public repositories.
+
+`NPM Audit` runs `npm audit --omit=dev --audit-level=high`, gating runtime
+dependencies only. The build/lint toolchain (for example `shadcn` and
+`eslint-config-next`) pulls `braces <= 3.0.3`, which has no patched release
+(GHSA-vfj7-8cjw-p6xm); Dependabot and Dependency Review still surface dev-only
+advisories. Findings for intentionally non-functional placeholder keys are
+suppressed inline with `# gitleaks:allow`.
 
 Check each pinned action SHA against its stated release using Dependabot or a
 dedicated pinned-action verifier before activating the workflow. Review SHA
@@ -96,9 +124,10 @@ checked-in example cannot safely guess that ID. Verify the bypass works before
 enabling enforcement; do not leave the maintainer unable to merge or recover
 from a failed check.
 
-Choose the repository's license before making the source public. Configure
-`CODEOWNERS` with actual GitHub users or teams; do not commit placeholder
-owners as if they were enforceable policy.
+This repository ships `LICENSE` (MIT) and `.github/CODEOWNERS` mapped to the
+maintainer's real handle. Choose the repository's license before making the
+source public. Configure `CODEOWNERS` with actual GitHub users or teams; do not
+commit placeholder owners as if they were enforceable policy.
 
 ## Standalone repository setup
 

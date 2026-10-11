@@ -1,10 +1,39 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+
+import {
+  REQUEST_ID_HEADER,
+  resolveRequestId,
+} from "@/lib/observability/request-id";
+import { formatServerTiming } from "@/lib/observability/timing";
 
 // Next.js 16 renamed middleware to Proxy. Route protection here is a UX layer
 // only. The real security boundary is the server-side auth() check in the
 // protected layout (`app/(app)/layout.tsx`) and in every protected server
 // operation, so no path-matching route matcher is used.
-export default clerkMiddleware();
+//
+// Every request also gets a privacy-safe ID: we accept a well-formed inbound
+// `x-request-id` (e.g. from a proxy or a browser retry) or mint one, forward it
+// to the server via request headers, and echo it back on the response so a
+// client error can be matched to its server log line (docs/operations.md).
+export default clerkMiddleware(async (_auth, request) => {
+  const startedAt = performance.now();
+  const requestId = resolveRequestId(request.headers.get(REQUEST_ID_HEADER));
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(REQUEST_ID_HEADER, requestId);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set(REQUEST_ID_HEADER, requestId);
+  response.headers.set(
+    "Server-Timing",
+    formatServerTiming([
+      { name: "proxy", durationMs: performance.now() - startedAt },
+    ]),
+  );
+
+  return response;
+});
 
 export const config = {
   matcher: [

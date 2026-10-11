@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { execSync } = require('child_process');
 const title = execSync('git log -1 --format=%s').toString().trim();
 const pattern = /^(✨ feat|🐛 fix|🧪 test|♻ refactor|📚 docs|⚙ chore|👷 ci|💄 style|⚡ perf|📦 build|⏪ revert)(\([a-z0-9._/-]+\))?!?: .+$/;

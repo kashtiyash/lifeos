@@ -220,7 +220,8 @@ jobs:
       - run: npm run test:e2e
         env:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk # gitleaks:allow (nonfunctional placeholder)
-          # Switches the app to the secret-free test-auth adapter (to be built with the app).
+          # Switches the app to the secret-free test-auth adapter
+          # (lib/auth/e2e). Disabled outside non-production runs.
           E2E_TEST_AUTH: "1"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()

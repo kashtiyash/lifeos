@@ -80,7 +80,11 @@ repository.
   convention and would otherwise fail the emoji/type rule. The job still runs
   and reports success for those PRs.
 - Run general E2E coverage with an isolated test-auth adapter that needs no
-  provider secrets. Keep tests against the actual Clerk test instance in a
+  provider secrets (`E2E_TEST_AUTH=1`, see [`testing.md`](./testing.md#test-auth-adapter)).
+  Playwright starts its own server on a dedicated port and `.next-e2e` build
+  directory, so the run never collides with a local dev server. The adapter is
+  disabled outside production and can only mint its registered test users.
+  Keep tests against the actual Clerk test instance in a
   trusted workflow/environment with restricted access; do not make a
   secret-dependent job a required check until all contribution paths have a
   safe, deterministic strategy.

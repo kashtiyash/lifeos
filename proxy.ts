@@ -1,6 +1,8 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
+import { isE2ETestAuthEnabled } from "@/lib/auth/e2e/config";
 import {
   REQUEST_ID_HEADER,
   resolveRequestId,
@@ -8,7 +10,7 @@ import {
 import { formatServerTiming } from "@/lib/observability/timing";
 
 // Next.js 16 renamed middleware to Proxy. Route protection here is a UX layer
-// only. The real security boundary is the server-side auth() check in the
+// only. The real security boundary is the server-side session check in the
 // protected layout (`app/(app)/layout.tsx`) and in every protected server
 // operation, so no path-matching route matcher is used.
 //
@@ -16,7 +18,7 @@ import { formatServerTiming } from "@/lib/observability/timing";
 // `x-request-id` (e.g. from a proxy or a browser retry) or mint one, forward it
 // to the server via request headers, and echo it back on the response so a
 // client error can be matched to its server log line (docs/operations.md).
-export default clerkMiddleware(async (_auth, request) => {
+function withRequestMetadata(request: NextRequest): NextResponse {
   const startedAt = performance.now();
   const requestId = resolveRequestId(request.headers.get(REQUEST_ID_HEADER));
 
@@ -33,7 +35,21 @@ export default clerkMiddleware(async (_auth, request) => {
   );
 
   return response;
-});
+}
+
+// Real identity verification: load and refresh the Clerk session.
+const clerkProxy = clerkMiddleware(async (_auth, request) =>
+  withRequestMetadata(request),
+);
+
+// Secret-free test mode: Clerk is not configured, so skip it entirely and keep
+// only the request observability. Enabled only outside production
+// (lib/auth/e2e/config.ts).
+const testAuthProxy = (request: NextRequest) => withRequestMetadata(request);
+
+const proxy = isE2ETestAuthEnabled() ? testAuthProxy : clerkProxy;
+
+export default proxy;
 
 export const config = {
   matcher: [

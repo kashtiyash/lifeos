@@ -14,6 +14,7 @@
     "test:integration": "vitest run tests/integration --passWithNoTests",
     "test:e2e": "playwright test",
     "test:guard": "npx cross-env NODE_ENV=production E2E_TEST_AUTH=1 next build",
+    "check-pr-title": "node scripts/pr-title-check.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

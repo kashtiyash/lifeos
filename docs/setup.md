@@ -37,21 +37,22 @@ The harness has since been removed; [ADR 0001](adr/0001-backend-providers.md)
 records the result. The local database from step 2 still backs the integration
 and RLS tests.
 
-## 4. GitHub
+## 4. GitHub (done 2026-10-11)
 
-- [ ] Decide public or private. Dependency Review and CodeQL work on private repos only with the right GitHub plan.
-- [ ] Create and push:
+- [x] Decide visibility: **public**. Rulesets, CodeQL, Dependency Review and
+      secret scanning require a public repo or a paid plan on private repos.
+- [x] Create and push:
 
 ```bash
-git init   # skip if already a repo
-gh repo create lifeos --private --source=. --push   # or --public
-gh api user --jq .id        # your numeric ID, for the ruleset bypass actor
+gh repo create lifeos --public --source=. --push
+gh api user --jq .id        # numeric ID, for the ruleset bypass actor
 ```
 
-- [ ] Open a test pull request so every workflow check appears, then confirm the names match `.github/rulesets/main-protection.json`.
-- [ ] Settings → Rules → Rulesets → import that file, add yourself as a bypass actor (pull-request-only), set enforcement to Active, and verify you can still merge.
-- [ ] Settings → Security: enable private vulnerability reporting (so `SECURITY.md` is true).
-- [ ] Add repository secrets `CLERK_TEST_PUBLISHABLE_KEY` and `CLERK_TEST_SECRET_KEY` from a **separate** Clerk test instance (later).
+- [x] Test PR produced every check name; they match `.github/rulesets/main-protection.json`.
+- [x] Imported `main-protection`, added the maintainer as a pull-request-only bypass actor, enforced on the default branch.
+- [x] Enabled private vulnerability reporting, secret scanning, push protection, and Dependabot alerts/security updates.
+- [x] Added repository secrets `CLERK_TEST_PUBLISHABLE_KEY` and `CLERK_TEST_SECRET_KEY` from a **separate** Clerk test instance.
+- [x] Added `LICENSE` (MIT) and `.github/CODEOWNERS`.
 
 ## 5. Neon (database)
 

@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { isE2ETestAuthEnabled } from "@/lib/auth/e2e/config";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
@@ -36,22 +37,28 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  return (
-    <ClerkProvider>
-      <html
-        lang="en"
-        className={cn("font-sans", inter.variable)}
-        suppressHydrationWarning
-      >
-        <body className="min-h-dvh antialiased">
-          <ThemeProvider>
-            {children}
-            <Toaster />
-          </ThemeProvider>
-          <Analytics />
-          <SpeedInsights />
-        </body>
-      </html>
-    </ClerkProvider>
+  const tree = (
+    <html
+      lang="en"
+      className={cn("font-sans", inter.variable)}
+      suppressHydrationWarning
+    >
+      <body className="min-h-dvh antialiased">
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
   );
+
+  // The secret-free test-auth adapter runs without a configured Clerk instance,
+  // so ClerkProvider is omitted entirely in E2E mode (see lib/auth/e2e/config).
+  if (isE2ETestAuthEnabled()) {
+    return tree;
+  }
+
+  return <ClerkProvider>{tree}</ClerkProvider>;
 }

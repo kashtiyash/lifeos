@@ -10,7 +10,7 @@ never run tests against production user data.
 |---|---|
 | Unit (Vitest) | Pure domain rules, schemas, timezone behavior, and formatting. |
 | Database integration (Vitest + local PostgreSQL) | Drizzle migrations, constraints, repositories, RLS, transaction-local Clerk identity, and error mapping. |
-| End-to-end (Playwright) | Browser flows through the local Next.js app and local test database; use a dedicated Clerk test instance for provider-controlled auth flows. |
+| End-to-end (Playwright) | Browser flows through the local Next.js app and local test database; use a dedicated Clerk test instance for provider-controlled auth flows. Signed-in flows use the secret-free test-auth adapter (`E2E_TEST_AUTH=1`, see below) so they need no provider secrets. |
 | Accessibility | axe-core plus keyboard, focus, zoom, theme, and responsive checks. |
 | Security | CI secret scan, dependency audit, applicable dependency review/CodeQL, and focused security review. |
 
@@ -76,6 +76,33 @@ never place production credentials in Actions secrets. Builds use a
 well-formed, nonfunctional test publishable key and do not need Clerk secrets.
 The Playwright configuration must start/stop the app and collect bounded
 failure artifacts.
+
+## Test-auth adapter
+
+`E2E_TEST_AUTH=1` switches the app to a secret-free test-auth adapter
+(`lib/auth/e2e/`) so Playwright can exercise signed-in flows without a Clerk
+instance. The adapter is deliberately narrow:
+
+- It is active only outside production. A production build refuses to start with
+  `E2E_TEST_AUTH=1` (`assertE2ETestAuthConfig` in `next.config.ts`), and the
+  session helper treats a production process as Clerk-only.
+- It can mint only the registered test users in `lib/auth/e2e/users.ts`. Any
+  other cookie value is treated as signed out, so a forged identity cannot
+  authenticate.
+- Sign-in/out is a single cookie via `app/api/e2e/auth/route.ts`, which returns a
+  plain `404` whenever the adapter is disabled.
+
+`playwright.config.ts` starts its own dev server for the run: it sets
+`E2E_TEST_AUTH=1`, binds a dedicated port (`PLAYWRIGHT_PORT`, default `3100`),
+and — because `next.config.ts` selects the `.next-e2e` `distDir` whenever the
+adapter is active — uses a separate build directory. That keeps
+`npm run test:e2e` from clashing with, or silently reusing, a developer's normal
+`next dev` on port 3000 (Next 16 allows only one dev server per `distDir`).
+Point `PLAYWRIGHT_BASE_URL` at an externally managed server to run against it
+instead; the config then leaves that server's auth mode untouched.
+Provider-controlled flows (real Clerk sign-up, email verification, password
+reset, Google OAuth) stay on the trusted Clerk test workflow and the manual
+release checklist.
 
 Pull requests gate on PR title, lint/typecheck, unit tests, database/RLS
 tests, build, and secret scan. Keep E2E advisory until it can run without

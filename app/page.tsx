@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
 import { ArrowRightIcon } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { getCurrentUserId } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 import { targetSizes } from "@/lib/ui/targets";
 
 export default async function HomePage() {
   // Signed-in visitors go straight into the app; the landing page is for
   // signed-out visitors and new sign-ups.
-  const { userId } = await auth();
+  const userId = await getCurrentUserId();
   if (userId) {
     redirect("/dashboard");
   }

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { E2EUserMenu } from "@/components/e2e-user-menu";
 import { QuickAdd } from "@/components/quick-add";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,12 +16,34 @@ const skipLinkClass =
   "sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-md focus:ring-2 focus:ring-ring";
 
 /**
+ * Which account control the shell renders. Clerk is the production identity
+ * provider; the `e2e` variant is the secret-free test-auth adapter, which has
+ * no provider to read a display name from, so the name is passed in.
+ */
+export type AppShellAccount =
+  | { mode: "clerk" }
+  | { mode: "e2e"; name: string };
+
+/**
  * Application shell: sidebar at/above 768px, bottom navigation below it.
  * Includes a skip link, labelled landmarks, `min-h-dvh`, safe-area insets for
  * the notched bottom bar, and a `QuickAdd` action within thumb reach.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  account,
+}: {
+  children: React.ReactNode;
+  account: AppShellAccount;
+}) {
   const pathname = usePathname();
+
+  const accountMenu = (hideNameBelowSm = false) =>
+    account.mode === "e2e" ? (
+      <E2EUserMenu name={account.name} hideNameBelowSm={hideNameBelowSm} />
+    ) : (
+      <UserMenu hideNameBelowSm={hideNameBelowSm} />
+    );
 
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
@@ -63,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="flex items-center justify-between gap-2 px-1">
           <ThemeToggle />
-          <UserMenu />
+          {accountMenu()}
         </div>
       </aside>
 
@@ -78,7 +101,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex min-w-0 items-center gap-1">
             <ThemeToggle />
-            <UserMenu hideNameBelowSm />
+            {accountMenu(true)}
           </div>
         </header>
 

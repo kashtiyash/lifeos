@@ -28,6 +28,9 @@ jobs:
       - name: Self-test PR title rules
         run: bash .github/scripts/test-pr-title.sh
       - name: Validate PR title
+        # Dependabot PR titles follow their own convention; exempt them so the
+        # required "PR Title" check reports success instead of blocking updates.
+        if: github.actor != 'dependabot[bot]'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
@@ -163,7 +166,7 @@ jobs:
         env:
           # Well-formed but nonfunctional key (base64 of "example.clerk.accounts.dev$").
           # No repository secrets, so Dependabot and fork PRs can build.
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk # gitleaks:allow (nonfunctional placeholder)
 
   # Advisory (not a required check) until the test-auth adapter exists and is stable.
   e2e-tests:
@@ -216,7 +219,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         env:
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk # gitleaks:allow (nonfunctional placeholder)
           # Switches the app to the secret-free test-auth adapter (to be built with the app).
           E2E_TEST_AUTH: "1"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

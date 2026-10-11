@@ -76,7 +76,11 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm audit --audit-level=high
+      # Audit runtime dependencies. The build/lint toolchain (shadcn,
+      # eslint-config-next) pulls braces <= 3.0.3, which has no patched release
+      # (GHSA-vfj7-8cjw-p6xm). Dependabot and Dependency Review still track
+      # dev-only advisories.
+      - run: npm audit --omit=dev --audit-level=high
 
   codeql:
     name: CodeQL

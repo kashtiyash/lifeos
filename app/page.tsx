@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { ArrowRightIcon } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -6,7 +8,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { targetSizes } from "@/lib/ui/targets";
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Signed-in visitors go straight into the app; the landing page is for
+  // signed-out visitors and new sign-ups.
+  const { userId } = await auth();
+  if (userId) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="flex items-center justify-between gap-2 px-4 py-3 md:px-6">

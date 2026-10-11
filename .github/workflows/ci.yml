@@ -168,6 +168,14 @@ jobs:
           # No repository secrets, so Dependabot and fork PRs can build.
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk # gitleaks:allow (nonfunctional placeholder)
 
+  guard:
+    name: Guard (E2E_TEST_AUTH Production Check)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm ci
+      - run: npm run test:guard
+
   # Advisory (not a required check) until the test-auth adapter exists and is stable.
   e2e-tests:
     name: E2E Tests
